@@ -1,0 +1,111 @@
+version: "3.9"
+
+services:
+  postgres_profile:
+    container_name: profile_db
+    hostname: profile_db
+    image: postgres:14.8
+    environment:
+      PG_DATA: /var/lib/postgresql/data
+      POSTGRES_DB: profile
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5431:5432"
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres_auth:
+    container_name: auth_db
+    hostname: auth_db
+    image: postgres:14.8
+    environment:
+      PG_DATA: /var/lib/postgresql/data
+      POSTGRES_DB: auth
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    container_name: rabbitmq
+    hostname: rabbitmq
+    image: rabbitmq:3.11.3-management
+    ports:
+      - "15672:15672"
+      - "5672:5672"
+    healthcheck:
+      test: ["CMD", "rabbitmqctl", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  profile:
+    container_name: profile
+    build: ./apps/profile-service
+    environment:
+      - PORT=3000
+      - POSTGRES_HOST=profile_db
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DATABASE=profile
+      - RMQ_URL=amqp://rabbitmq:5672
+      - RABBITMQ_PROFILE_QUEUE=profile_queue
+      - RABBITMQ_AUTH_QUEUE=auth_queue
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres_profile
+      - rabbitmq
+    links:
+      - postgres_profile
+      - rabbitmq
+
+  auth:
+    container_name: auth
+    build: ./apps/auth-service
+    environment:
+      - PORT=4000
+      - POSTGRES_HOST=auth_db
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DATABASE=auth
+      - RMQ_URL=amqp://rabbitmq:5672
+      - RABBITMQ_AUTH_QUEUE=auth_queue
+    ports:
+      - "4000:4000"
+    depends_on:
+      - postgres_auth
+      - rabbitmq
+    links:
+      - postgres_auth
+      - rabbitmq
+
+  api:
+    container_name: api
+    build: ./apps/api-gateway
+    ports:
+      - "4001:4001"
+    environment:
+      - PORT=4001
+      - RABBITMQ_AUTH_QUEUE=auth_queue
+      - RABBITMQ_PROFILE_QUEUE=profile_queue
+    depends_on:
+      - rabbitmq
+      - auth
+      - profile
+
+networks:
+  default:
+    name: microservices_network
+    driver: bridge
