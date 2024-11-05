@@ -4,6 +4,7 @@ import { ClientsModule, Transport } from '@nestjs/microservices';
 
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { HttpModule } from '@nestjs/axios';
 
 @Module({
   controllers: [AuthController],
@@ -25,6 +26,7 @@ import { AuthService } from './auth.service';
         },
       },
     ]),
+    HttpModule,
   ],
   exports: [AuthService],
 })

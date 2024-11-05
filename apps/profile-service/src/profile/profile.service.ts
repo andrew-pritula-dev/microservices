@@ -19,9 +19,9 @@ export class ProfileService {
     const user_profile = await this.userProfileRepository.save({
       name: dto.name,
     });
-    console.log('send to notification service');
+
     await firstValueFrom(this.authClient.send('notification.delay', dto));
-    console.log('after send');
+
     return user_profile;
   }
 }

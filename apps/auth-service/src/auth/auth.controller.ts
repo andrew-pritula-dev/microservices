@@ -8,8 +8,7 @@ export class AuthController {
   constructor(private authService: AuthService) {}
 
   @MessagePattern('notification.delay')
-  notifyUser(notifyDto: { name: string }): Promise<object> {
-    console.log('handle routes');
+  notifyUser(notifyDto: { name: string }): Promise<string> {
     return this.authService.notifyDelay(notifyDto);
   }
 }
